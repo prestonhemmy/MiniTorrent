@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="96cb22a2-8586-4db8-a4eb-86620674510e" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/../bin/torrent_client/ChokeMessage.class" beforeDir="false" afterPath="$PROJECT_DIR$/../bin/torrent_client/ChokeMessage.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../bin/torrent_client/HaveMessage.class" beforeDir="false" afterPath="$PROJECT_DIR$/../bin/torrent_client/HaveMessage.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../bin/torrent_client/InterestedMessage.class" beforeDir="false" afterPath="$PROJECT_DIR$/../bin/torrent_client/InterestedMessage.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../bin/torrent_client/Message.class" beforeDir="false" afterPath="$PROJECT_DIR$/../bin/torrent_client/Message.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../bin/torrent_client/NotInterestedMessage.class" beforeDir="false" afterPath="$PROJECT_DIR$/../bin/torrent_client/NotInterestedMessage.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../bin/torrent_client/Peer.class" beforeDir="false" afterPath="$PROJECT_DIR$/../bin/torrent_client/Peer.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../bin/torrent_client/Torrent.class" beforeDir="false" afterPath="$PROJECT_DIR$/../bin/torrent_client/Torrent.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../bin/torrent_client/UnchokeMessage.class" beforeDir="false" afterPath="$PROJECT_DIR$/../bin/torrent_client/UnchokeMessage.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/project_config_file_large/PeerInfo.cfg" beforeDir="false" afterPath="$PROJECT_DIR$/project_config_file_large/PeerInfo.cfg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/torrent_client/Peer.java" beforeDir="false" afterPath="$PROJECT_DIR$/torrent_client/Peer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/torrent_client/Torrent.java" beforeDir="false" afterPath="$PROJECT_DIR$/torrent_client/Torrent.java" afterDir="false" />
+    </list>
+    <list id="5a82d69b-e357-4ad5-9cc2-059493546ff6" name="Changes by ag_fo" comment="" />
+    <list id="ab19e0cd-a7c3-4b2f-b3c7-7a60de584de2" name="Changes by prest" comment="">
+      <change beforePath="$PROJECT_DIR$/torrent_client/Message.java" beforeDir="false" afterPath="$PROJECT_DIR$/torrent_client/Message.java" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 1
+}</component>
+  <component name="ProjectId" id="34DXvPk3Q7fIav6NJUSyj9YoIjp" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Application.Torrent.executor": "Run",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "peer__connection__testing2",
+    "ignore.virus.scanning.warn.message": "true",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "C:/Users/sebas/OneDrive/Documents/GitHub/CNT4007-P2P-Project/CNT4007-P2P-Project/src",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-9823dce3aa75-bf35d07a577b-intellij.indexing.shared.core-IU-252.25557.131" />
+        <option value="bundled-js-predefined-d6986cc7102b-b598e85cdad2-JavaScript-IU-252.25557.131" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="96cb22a2-8586-4db8-a4eb-86620674510e" name="Changes" comment="" />
+      <created>1760749346184</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1760749346184</updated>
+      <workItem from="1760749347454" duration="3005000" />
+      <workItem from="1760987604043" duration="7827000" />
+      <workItem from="1763581919584" duration="94000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+</project>

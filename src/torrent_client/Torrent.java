@@ -53,10 +53,14 @@ public class Torrent {
             p1.establishConnection(peerConnectionID, p2.getHostname(), p2.getPort());
             Thread.sleep(500);
 
-            ArrayList<Integer> pieces = p1.checkPieces(p2);
-            System.out.println(pieces);
-//            p1.sendMessage("Hello from peer " + p1.getPeerID());
-            p1.sendMessage(peerConnectionID, new HandshakeMessage(1001));
+            p1.sendMessage(peerConnectionID, new HandshakeMessage(p1.getPeerID()));
+            Thread.sleep(500);
+
+//            ArrayList<Integer> pieces = p1.checkPieces(p2);
+//            System.out.println(pieces);
+
+            // Send file
+            p1.sendFile(peerConnectionID);
         } while (!buffer.isEmpty());
     }
 }
