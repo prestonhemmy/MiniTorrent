@@ -49,13 +49,14 @@ public class Torrent {
                 e.printStackTrace();
             }
             Peer p2 = tracker.getPeerByID(peerConnectionID);
-            Thread.sleep(500);
+//            Thread.sleep(500);
             p1.establishConnection(peerConnectionID, p2.getHostname(), p2.getPort());
             Thread.sleep(500);
 
             ArrayList<Integer> pieces = p1.checkPieces(p2);
             System.out.println(pieces);
-            p1.sendMessage("Hello from peer " + p1.getPeerID());
+//            p1.sendMessage("Hello from peer " + p1.getPeerID());
+            p1.sendMessage(peerConnectionID, new HandshakeMessage(1001));
         } while (!buffer.isEmpty());
     }
 }

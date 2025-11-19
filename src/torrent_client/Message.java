@@ -6,12 +6,13 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.BitSet;
+import java.util.Scanner;
 import java.util.stream.Collectors;
 
 /**
  * Factory Pattern implementation of Abstract Class for messages.
  * By abstracting, namely message type, then the client need only know how to create a 'Message' from 'type' and
- * 'payload' params, without knowledge of how specific message (ex. 'ChokeMessage', 'RequestMessage') format and
+ * 'payload' params, without knowledge of specific message (ex. 'ChokeMessage', 'RequestMessage') format and
  * creation.
  */
 public abstract class Message {
@@ -231,7 +232,8 @@ class PieceMessage extends Message {
 }
 
 // Example usage:
-// public void sendMessage(Message msg, OutputStream out) {
+// public synchronized void sendMessage(Message msg, OutputStream out) {
+//     // ^ 'synchronized' keyword to ensures only one message written at a given time
 //     byte[] data = msg.serialize();   // converts Message to byte array
 //     out.write(data);                 // transfer to output stream (socket)
 //     out.flush();                     // send immediately
@@ -261,8 +263,16 @@ class CommonConfig {
         file_name = "TheFile.dat";
         file_size = 10000232;
         piece_size = 32768;
+    }
 
-        // TODO: Should read from 'Common.cfg'
+    CommonConfig(int num_pref_neighbors, int unchoking_interval, int opt_unchoking_interval,
+                 String file_name, int file_size, int piece_size) {
+        this.num_pref_neighbors = num_pref_neighbors;
+        this.unchoking_interval = unchoking_interval;
+        this.opt_unchoking_interval = opt_unchoking_interval;
+        this.file_name = file_name;
+        this.file_size = file_size;
+        this.piece_size = piece_size;
     }
 
     int getNumPrefNeighbors() { return num_pref_neighbors; }
@@ -271,6 +281,46 @@ class CommonConfig {
     String getFileName() { return file_name; }
     int getFileSize() { return file_size; }
     int getPieceSize() { return piece_size; }
+}
+
+// TODO: Move to new file 'ConfigParser.java' and make public
+class ConfigParser {
+    CommonConfig parseCommonConfig(String filename) {
+        int num_pref_neighbors = 2;
+        int unchoking_interval = 5;
+        int opt_unchoking_interval = 15;
+        String file_name = "TheFile.dat";
+        int file_size = 10000232;
+        int piece_size = 32768;
+
+        try {
+            Scanner scanner = new Scanner(new File(filename));
+            while (scanner.hasNext()) {
+                String property = scanner.next();
+
+                if (!scanner.hasNext()) break;
+
+                if (property.equals("NumberOfPreferredNeighbors")) { num_pref_neighbors = scanner.nextInt(); }
+                else if (property.equals("UnchokingInterval")) { unchoking_interval = scanner.nextInt(); }
+                else if (property.equals("OptimisticUnchokingInterval")) { opt_unchoking_interval = scanner.nextInt(); }
+                else if (property.equals("FileName")) { file_name = scanner.next(); }
+                else if (property.equals("FileSize")) { file_size = scanner.nextInt(); }
+                else if (property.equals("PieceSize")) { piece_size = scanner.nextInt(); }
+                else { scanner.next(); }
+            }
+
+            scanner.close();
+        } catch (FileNotFoundException e) {
+            System.err.println("Error parsing 'Common.cfg': " + e.getMessage());
+        }
+
+        return new CommonConfig(
+                num_pref_neighbors, unchoking_interval, opt_unchoking_interval, file_name, file_size, piece_size
+        );
+    }
+
+    // TODO: Consider moving 'PeerProcess.java' PeerInfo.cfg parsing here
+    //  for unified config parsing functionality
 }
 
 // TODO: Move to new file 'MessageHandler.java' and make public
@@ -312,16 +362,15 @@ class MessageHandler {
 }
 
 // Example usage:
-// public void receiveMessage(InputStream in) {
-//     byte[] len_bytes = new byte[4];
-//     inputStream.read(len_bytes);                         // extract length
-//     int length = ByteBuffer.wrap(length_bytes).getInt();
+// public Message receiveMessage(DataInputStream in) throws IOException {
+//     int length = in.readInt();                      // extract length
+//     byte[] data = new byte[4 + length];             // length + (type + payload)
 //
-//     byte[] msg_bytes = new byte[length + 4];
-//     System.arraycopy(len_bytes, 0, msg_bytes, 0, 4);     // prepend msg_bytes with length bytes
-//     inputStream.read(msg_bytes);                         // extract/append type + payload to msg_bytes
+//     ByteBuffer.wrap(data).putInt(length);           // prepend data with length bytes
+//     in.readFully(data, 4, length);                  // extract (type + payload) into data
+//     // ^ 'readFully()' blocks until all bytes received
 //
-//     return messageHandler.parseMessage(msg_bytes);       // converts byte array to Message
+//     return MessageHandler.parseMessage(data);       // converts byte array to Message
 // }
 
 
@@ -329,7 +378,6 @@ class MessageHandler {
 
 
 // TODO: Move to new file 'Handshake.java' and make public
-
 class HandshakeMessage {
     private static final String HEADER = "P2PFILESHARINGPROJ";
     private final int peer_ID;
@@ -364,6 +412,9 @@ class HandshakeMessage {
 
         return new HandshakeMessage(peer_ID);   // -> defer checking of expected peer_ID to invoking method
     }
+
+    String getHeader() { return HEADER; }
+    int getPeerID() { return peer_ID; }
 }
 
 // Example usage:
@@ -378,7 +429,6 @@ class HandshakeMessage {
 
 
 // TODO: Move to new file 'Logger.java' and make public
-
 class Logger implements AutoCloseable {
     private final PrintWriter writer;   // wrapper
     private final int peer_ID;          // sending peer
