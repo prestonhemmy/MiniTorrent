@@ -16,7 +16,7 @@ public class CommonConfig {
         num_pref_neighbors = 2;
         unchoking_interval = 5;
         opt_unchoking_interval = 15;
-        file_name = "TheFile.dat";
+        file_name = "tree.jpg";
         file_size = 10000232;
         piece_size = 32768;
     }
@@ -40,12 +40,13 @@ public class CommonConfig {
 }
 
 // TODO: Move to new file 'ConfigParser.java' and make public
+// TODO: Integration?
 class ConfigParser {
     CommonConfig parseCommonConfig(String filename) {
         int num_pref_neighbors = 2;
         int unchoking_interval = 5;
         int opt_unchoking_interval = 15;
-        String file_name = "TheFile.dat";
+        String file_name = "tree.jpg";
         int file_size = 10000232;
         int piece_size = 32768;
 

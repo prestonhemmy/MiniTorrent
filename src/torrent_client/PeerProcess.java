@@ -12,7 +12,7 @@ public class PeerProcess {
     public PeerProcess(int peerID){
         this.peerID = peerID;
     }
-    public static Map<Integer, Peer> readPeerInfoConfig(String filePath, int chunkCount) {
+    public static Map<Integer, Peer> readPeerInfoConfig(String filePath, CommonConfig config) {
         Map<Integer, Peer> peers = new HashMap<>();
 
         try (BufferedReader reader = Files.newBufferedReader(Paths.get(filePath))) {
@@ -27,17 +27,18 @@ public class PeerProcess {
                 int port = Integer.parseInt(parts[2]);
                 boolean hasFile = parts[3].equals("1");
 
-                boolean[] hasChunks = new boolean[chunkCount];
+//                boolean[] hasChunks = new boolean[chunkCount];
                 // previous logic, was having some errors and wasnt setting right
                 // I didnt want to overwrite so its still here just in case
                 // for(boolean b : hasChunks) b = b || hasFile;
-                if (hasFile) {
-                    Arrays.fill(hasChunks, true);
-                } else {
-                    Arrays.fill(hasChunks, false);
-                }
+//                if (hasFile) {
+//                    Arrays.fill(hasChunks, true);
+//                } else {
+//                    Arrays.fill(hasChunks, false);
+//                }
 
-                peers.put(peerId, new Peer(peerId, hostName, port, hasChunks));
+                // updated to follow new Peer() constructor
+                peers.put(peerId, new Peer(peerId, hostName, port, hasFile, config));
             }
         } catch (IOException e) {
             e.printStackTrace();
