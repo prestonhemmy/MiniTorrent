@@ -127,6 +127,10 @@ class BitfieldMessage extends Message {
         this.num_pieces = num_pieces;
     }
 
+    public BitSet getBitfield() {
+        return bitfield;
+    }
+
     @Override
     public byte getMessageType() { return BITFIELD; }
 

@@ -69,9 +69,9 @@ public class Logger implements AutoCloseable {
         log(String.format("Peer %d received the 'not interested' message from %d ", peer_ID_1, peer_ID_2));
     }
 
-    public void logDownloadingPiece(int peer_ID_1, int peer_ID_2, int piece_index, int num_pieces) {
+    public void logDownloadingPiece(int peer_ID_1, int peer_ID_2, int piece_index, int num_pieces_owned) {
         // 'Peer [peer_ID_1] has downloaded the piece [piece_index] from [peer_ID_2]. Now the number of pieces it has is [num_pieces]'
-        log(String.format("Peer %d has downloaded the piece %d from %d. Now the number of pieces it has is %d", peer_ID_1, piece_index, peer_ID_2, num_pieces));
+        log(String.format("Peer %d has downloaded the piece %d from %d. Now the number of pieces it has is %d", peer_ID_1, piece_index, peer_ID_2, num_pieces_owned));
     }
 
     public void logCompletionOfDownload(int peer_ID) {
