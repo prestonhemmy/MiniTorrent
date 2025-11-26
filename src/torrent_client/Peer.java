@@ -487,7 +487,9 @@ public class Peer {
 
         } else if (msg instanceof PieceMessage pieceMsg) {
             // save piece (and update 'owned_pieces' bitfield in FileManager)
-            if (fileManager.savePiece(pieceMsg.getPieceIndex(), pieceMsg.getPayload())) {
+            // Make sure to skip first four bytes so that we only get the payload
+            byte[] payload = pieceMsg.getPayload();
+            if (fileManager.savePiece(pieceMsg.getPieceIndex(), Arrays.copyOfRange(payload, 4, payload.length))) {
 //                logger.logDownloadingPiece(peerID, remotePeerID, pieceMsg.getPieceIndex(), fileManager.getNumPiecesOwned());
 
                 // check if peer owns entire file
@@ -513,9 +515,22 @@ public class Peer {
             // TODO: Remaining Message processing
         } else if (msg instanceof HaveMessage) {
         } else if (msg instanceof InterestedMessage) {
+            // After a peer receives an Interested Message, the peer must send an Unchoke Message to let
+            // the interested peer that it can request the pieces
+            // This is just a baseline for now, when we implement the choking/unchoking algorithm
+            // this will most definitely change
+
+            sendMessage(remotePeerID, new UnchokeMessage());
+            
         } else if (msg instanceof NotInterestedMessage) {
         } else if (msg instanceof ChokeMessage) {
         } else if (msg instanceof UnchokeMessage) {
+            // If an unchoke message is sent to a peer, that means the peer is able to request
+            // pieces now
+            // We send a request message to begin sending pieces
+            // Find which indexes to request for
+            
+            sendMessage(remotePeerID, new RequestMessage(1));
         }
     }
 }
