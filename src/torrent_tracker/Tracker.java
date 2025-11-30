@@ -1,38 +1,70 @@
 package torrent_tracker;
 import torrent_client.Peer;
+import java.net.*;
+import java.util.*;
+import java.io.*;
 import java.util.ArrayList;
 
 public class Tracker {
-    ArrayList<Peer> tracker = new ArrayList<>();
+    static ArrayList<String[]> peers = new ArrayList<>();
 
-    public Tracker() {}
+    public static void main(String[] args) {
+        try {
+            ServerSocket tracker = new ServerSocket(8080);
+            System.out.println("Tracker started");
 
-    ArrayList<Peer> getAvailablePeers() {
-        return tracker;
-    }
+            while (true) {
+                System.out.println("\nWaiting for connection...");
+                Socket client = tracker.accept();
+                System.out.println("Connected!");
 
-    public void addPeer(Peer peer) {
-        tracker.add(peer);
-    }
+                BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
+                PrintWriter out = new PrintWriter(client.getOutputStream(), true);
 
-    public Peer getPeerByID(int id) {
-        for (Peer p : tracker) {
-            if (p.getPeerID() == id) {
-                return p;
+                // Convert ArrayList to StringBuilder to send over Connection
+                StringBuilder sendPeers = new StringBuilder();
+                for (String[] p : peers) {
+                    sendPeers.append(p[1]).append(",").append(p[2]).append(",").append(p[3]).append(";");
+                }
+
+                System.out.println("Available peers: " + sendPeers.toString());
+                out.println(sendPeers);
+                out.flush();
+
+                String[] peerAttributes = in.readLine().split(" ");
+                peers.add(peerAttributes);
             }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        return null;
     }
 
-    ArrayList<Peer> getNeighboringPeers(Peer peer) {
-        ArrayList<Peer> neighbors = new ArrayList<>();
-        for (Peer p : tracker) { // filters out given peer from tracker
-            if (!p.equals(peer)) {
-                neighbors.add(p);
-            }
-        }
-        return neighbors;
-    }
+//    ArrayList<Peer> getAvailablePeers() {
+//        return tracker;
+//    }
+//
+//    public void addPeer(Peer peer) {
+//        tracker.add(peer);
+//    }
+//
+//    public Peer getPeerByID(int id) {
+//        for (Peer p : tracker) {
+//            if (p.getPeerID() == id) {
+//                return p;
+//            }
+//        }
+//        return null;
+//    }
+//
+//    ArrayList<Peer> getNeighboringPeers(Peer peer) {
+//        ArrayList<Peer> neighbors = new ArrayList<>();
+//        for (Peer p : tracker) { // filters out given peer from tracker
+//            if (!p.equals(peer)) {
+//                neighbors.add(p);
+//            }
+//        }
+//        return neighbors;
+//    }
 }
 
 // Tracker tracker = array

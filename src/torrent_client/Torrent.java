@@ -17,7 +17,6 @@ public class Torrent {
         CommonConfig config = parser.parseCommonConfig(commonPath);
 
         String peerInfoPath = "src/project_config_file_large/PeerInfo.cfg";
-        Tracker tracker = new Tracker();
 
         Map<Integer, Peer> peers = PeerProcess.readPeerInfoConfig(peerInfoPath, config);
         if (peers.isEmpty()) {
@@ -29,11 +28,28 @@ public class Torrent {
             return;
         }
 
-        for (Peer peer : peers.values()) {
-            tracker.addPeer(peer);
+        Peer p1 = peers.get(Integer.parseInt(args[0]));
+
+        /**
+         * Must retrieve the peers in the torrent, and then add the new peer to the tracker
+         * Requires connecting to Tracker socket and retrieving information
+         */
+        String peersInTorrent = p1.connectToTracker();
+
+        /**
+         * Parse the string returned
+         */
+        ArrayList<String[]> receivedPeersInTorrent = new ArrayList<>();
+        if  (peersInTorrent.isEmpty()) {
+            System.err.println("No peers found!");
+        } else {
+            String[] trackedPeersAsString =  peersInTorrent.split(";");
+            for (String trackedPeer : trackedPeersAsString) {
+                String[] trackedPeerInfo = trackedPeer.split(",");
+                receivedPeersInTorrent.add(trackedPeerInfo);
+            }
         }
 
-        Peer p1 = tracker.getPeerByID(Integer.parseInt(args[0]));
         p1.start();
 
         try { // give time to start
@@ -47,32 +63,23 @@ public class Torrent {
         // Per project specs: "The peer that has just started should make TCP connections to all peers that started
         // before it." ->  no need for a loop to continue taking user inputs
 //        do {
-            int peerConnectionID = 0;
-            try {
-                System.out.print("Enter the peerID of the peer you want to connect to: ");
-                buffer = reader.readLine();
-                peerConnectionID = Integer.parseInt(buffer);
-            } catch (IOException e) {
-                System.out.println("An error occurred while reading input.");
-                e.printStackTrace();
+        if (receivedPeersInTorrent.size() > 0) {
+            for (String[] peerInTorrent : receivedPeersInTorrent) {
+                p1.establishConnection(Integer.parseInt(peerInTorrent[0]), peerInTorrent[1], Integer.parseInt(peerInTorrent[2]));
             }
-            Peer p2 = tracker.getPeerByID(peerConnectionID);
-//            Thread.sleep(500);
-            p1.establishConnection(peerConnectionID, p2.getHostname(), p2.getPort());
-//            Thread.sleep(500);    // Since the handshake logic is now moved inside 'handleIncomingConnection()' and
-                                    // 'establishConnection()'; when 'establishConnection()' is called it creates a
-                                    // thread immediately performs the handshake synchronously; that is, the main thread
-                                    // is no longer responsible for manually sending the first Message
+        }
+
+//            int peerConnectionID = 0;
+//            try {
+//                System.out.print("Enter the peerID of the peer you want to connect to: ");
+//                buffer = reader.readLine();
+//                peerConnectionID = Integer.parseInt(buffer);
+//            } catch (IOException e) {
+//                System.out.println("An error occurred while reading input.");
+//                e.printStackTrace();
+//            }
+//            Peer p2 = peers.get(peerConnectionID);
 //
-//            // -> sendMessage() called in handleIncomingMessage() or establishConnection() listening loops
-//            p1.sendMessage(peerConnectionID, new HandshakeMessage(p1.getPeerID()));
-//            Thread.sleep(500);
-
-//            ArrayList<Integer> pieces = p1.checkPieces(p2);
-//            System.out.println(pieces);
-
-            // Send file
-//            p1.sendFile(peerConnectionID);
-//        } while (!buffer.isEmpty());
+//            p1.establishConnection(peerConnectionID, p2.getHostname(), p2.getPort());
     }
 }

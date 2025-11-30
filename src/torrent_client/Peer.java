@@ -223,6 +223,32 @@ public class Peer {
             }
         }
     }
+
+    /**
+     * Returns the available peers in the tracker while also adding the new peer to the tracker
+     */
+
+    public String connectToTracker() {
+        printLog(peerID + " is attempting to connect to tracker. . .");
+        String availablePeers = "";
+        try {
+            Socket client = new Socket("localhost", 8080);
+
+            BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
+            PrintWriter out = new PrintWriter(client.getOutputStream());
+
+            availablePeers = in.readLine();
+
+            out.println("ANNOUNCE " + peerID + " " + hostname + " " + port);
+            out.flush();
+
+            client.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return availablePeers;
+    }
     // Each peer must have its own server, so we create a it here and call it when needed
     // Use threads so it doesnt take forever
     public void start() {
