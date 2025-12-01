@@ -1,0 +1,16 @@
+# Ignore entire directory to prevent config conflicts!
+.idea/
+*.iml
+
+# Build artifacts
+bin/
+out/
+
+# Compiled class files
+*.class
+
+# Logs
+*.log
+
+# Ignore files generated during execution
+*.dat
