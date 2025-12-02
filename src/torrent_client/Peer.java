@@ -10,59 +10,26 @@ import java.util.concurrent.*;
 
 /**
  * CHANGES MADE:
- *  Added member variables 'config', 'fileManager' and 'messageHandler', 'Logger', 'neighborBitfields'
- *  -> FileManager requires a CommonConfig object to read file name, file size, and piece size
- *     Therefore, Peer() constructor now takes a 'config' parameter
- *  -> 'hasChunks' now initialized using 'getBitfieldArray()' of the FileManager class
- *     A FileManager is associated with each peer (peer directory ex. 1001/, 1002/, ...)
- *     and each instance maintains a BitSet 'available_pieces' which is initialized to all 1s
- *     if the associated peer has the complete file, o.w. each respective bit is set using
- *     during piece exchange (P2P process)
- *     Then 'getBitfieldArray()' converts the BitSet to a boolean[]
- *  -> MessageHandler is also initialized with a CommonConfig object since 'num_pieces' is
- *     required for forming the payload of a BitfieldMessage
- *     MessageHandler provides method 'parseMessage()' which deserializes an incoming byte stream,
- *     converting it to the respective Message type; it is called in the listening loops of
- *     handleIncomingConnection() and establishConnection() as this is where we listen for incoming
- *     messages (byte streams)
- *  -> The member variable 'line_counter' helper methods 'printLog()' are TEMPORARY utilities for
- *     producing more readable command line status updates
- *  -> Logger is a wrapper for FileWriter, handling timestamping and log message formatting
- *  -> 'neighborBitfields' maps 'remotePeerID's to their corresponding bitfield; the bitfield is
- *     managed by the FileManager, where it is updated for each 'piece file' saved to the associated
- *     peer's directory; 'neighborBitfields' is updated in processMessage() whenever a BitfieldMessage
- *     or a HaveMessage is received (processed) and used to determine interest (i.e. send
- *     InterestedMessage/NotInterestedMessage)
- *  -> 'processMessage()' is called in both listening loops; it handles each specific message receipt,
- *     that is, it "processes" each message and performs the corresponding logic; currently handles
- *     BitfieldMessages, RequestMessages and PieceMessages (partial implementation) but this method
- *     still needs implementation of remaining message types
- *  -> Miscellaneous:
- *     - 'msg.getClass().getSimpleName()' returns Message name for print outs
- *     - 'BitfieldMessage' sending added immediately after handshaking logic in both listening loops
- *     - previous 'sendMessage()' for HandshakeMessages generalized to all Message types
- *     - previous 'sendMessage()' logic moved directly to listening loops
- *     - previous 'sendFile()' and 'fileToByte()' logic moved to 'sendPiece()' and FileManager class
- *  CURRENT FUNCTIONALITY:
- *   - connection establishing
- *   - HandshakeMessage passing
- *   - maintaining bitfield for each peer (in FileManager)
- *   - BitfieldMessage exchange (on initialization)
- *   - Neighbor bitfield setup
- *   - RequestMessage passing and processing
- *   - PieceMessage passing
- *   - PieceMessage saving and reassembly (in FileManager)
- *
- *  TODO:
- *   - Neighbor bitfield tracker updates
- *   - complete Logger integration
- *   - Termination logic
- *   - ...
+ *   - Added termination logic mem vars:
+ *      - 'peerCompletionStatus': Hashmap tracking which peers have completed downloading
+ *      - 'totalPeers': total num of peers in the P2P network
+ *      - 'terminationLock': Object used for thread-safety
+ *      - 'doTermination': Global flag
+ *   - Added methods:
+ *      - 'setTotalPeers()': sets 'totalPeers' for tracking (called in Torrent.java)
+ *      - 'registerForTermination()': add peer to 'peerCompletionStatus' map with initial completion status (called in Torrent.java)
+ *      - 'markPeerAsDone()': marks a peer as done downloading in 'peerCompletionStatus' map
+ *      - 'checkTermination()': checks if ALL peers done
+ *      - 'waitForTermination()': blocks and rechecks 'doTermination' condition every 5 sec (called in Torrent.java)
+ *      - 'hasFile()': returns whether peer initially has the complete file
+ *   - updated 'processMessage()' to detect peer completion upon Bitfield- and HaveMessage receipt
+ *   - Removed 'connectToTracker()'
  */
 public class Peer {
     int peerID;
     String hostname;
     int port;
+    boolean hasFile;                // track whether peer initially has Complete File
     CommonConfig config;
     boolean[] hasChunks;
     FileManager fileManager;
@@ -73,22 +40,28 @@ public class Peer {
     ChokingManager chokingManager;
     private ScheduledExecutorService downloadScheduler;
 
-    Map<Integer, BitSet> neighborBitfields = new HashMap<>();       // neighbor bitfield state tracking
-    // keys correspond with neighbor's 'peerID'
+    Map<Integer, BitSet> neighborBitfields = new HashMap<>();
 
     int line_counter;   // TEMP (for cleaner command line outputs)
 
-    // 'ConcurrentHashMap' used for thread safety (provides synchronization)
     Map<Integer, DataOutputStream> peerOutputs = new ConcurrentHashMap<>();
     Map<Integer, Socket> sockets = new ConcurrentHashMap<>();
 
     // New set to locally store which peers are unchoking this peer to request pieces
     private final Set<Integer> unchokedByPeers = Collections.synchronizedSet(new HashSet<>());
 
+    /** NEW (Termination Tracking) */
+    int totalPeers = 0;
+    Map<Integer, Boolean> peerCompletionStatus = new ConcurrentHashMap<>();     // tracking which peers have Complete File -> ( peerID, hasCompleteDownload ) pairs
+    Object terminationLock = new Object();                                      // for thread synchronization
+    volatile boolean doTermination = false;                                     // flag to kill all peers (all threads) -> 'volatile' guarantees changing
+                                                                                // the value of 'doTermination' is visible to ALL threads immediately
+
     public Peer(int peerID, String hostname, int port, boolean hasFile, CommonConfig config) {
         this.peerID = peerID;
         this.hostname = hostname;
         this.port = port;
+        this.hasFile = hasFile;
         this.config = config;
         this.fileManager = new FileManager(peerID, config, hasFile);
         this.hasChunks = fileManager.getBitfieldArray();
@@ -104,10 +77,9 @@ public class Peer {
         }
 
         this.chokingManager = new ChokingManager(this, config, logger);
-
     }
 
-    // TEMP helper methods for clean command line outputs
+    // helper methods for clean command line outputs
     private synchronized void printLog(String msg) {
         line_counter++;
         System.out.println("[" + line_counter + "] " + msg);
@@ -118,21 +90,11 @@ public class Peer {
         System.out.println("\n[" + line_counter + "] " + msg);
     }
 
-    public String getHostname() {
-        return hostname;
-    }
-
-    public int getPort() {
-        return port;
-    }
-
-    public int getPeerID() {
-        return peerID;
-    }
-
-    public boolean[] getHasChunks() {
-        return hasChunks;
-    }
+    public String getHostname() { return hostname; }
+    public int getPort() { return port; }
+    public int getPeerID() { return peerID; }
+    public boolean[] getHasChunks() { return hasChunks; }
+    public boolean hasFile() { return hasFile; }
 
     void setNeighbors(ArrayList<Peer> neighbors) {
         this.neighbors = neighbors;
@@ -157,6 +119,92 @@ public class Peer {
 
     private boolean isUnchokedBy(int peerID) {
         return unchokedByPeers.contains(peerID);
+    }
+
+    /** NEW (Termination Tracking) */
+
+    /**
+     * Sets the total number of peers in the P2P network
+     * @param total number of peers
+     */
+    public void setTotalPeers(int total) {
+        this.totalPeers = total;
+    }
+
+    /**
+     * Adds a peer to "ready for termination" map
+     * @param remotePeerID of the peer to register
+     * @param initiallyHasFile indicating whether 'remotePeerID' starts with the complete file
+     */
+    public void registerForTermination(int remotePeerID, boolean initiallyHasFile) {
+        peerCompletionStatus.put(remotePeerID, initiallyHasFile);
+    }
+
+    /**
+     * Marks a peer as having a complete file download
+     * @param remotePeerID of peer done downloading
+     */
+    public void markPeerAsDone(int remotePeerID) {
+        Boolean prevStatus = peerCompletionStatus.put(remotePeerID, true);
+        if (prevStatus == null || !prevStatus) {
+            printLog("Peer" + remotePeerID + " marked as DONE DOWNLOADING");
+            checkTermination();
+        }
+    }
+
+    /**
+     * Check if all peers in the P2P network are done downloading
+     */
+    private void checkTermination() {
+        // if not all peers "discovered" then clearly we have not met termination condition
+        if (peerCompletionStatus.size() != totalPeers) {
+            return;
+        }
+
+        // check if all peers done downloading
+        boolean allPeersDone = true;
+        for (Boolean done : peerCompletionStatus.values()) {
+            if (!done) {
+                allPeersDone = false;
+                break;
+            }
+        }
+
+        if (allPeersDone) {
+            printLog("ALL PEERS DONE DOWNLOADING - Terminating...");
+            synchronized (terminationLock) {        // -> only one thread may execute at a given time
+                doTermination = true;               // notifies all peers in network
+                terminationLock.notifyAll();
+            }
+        }
+    }
+
+    /**
+     * Blocks until all peers have completed downloading
+     */
+    public void waitForTermination() {
+        synchronized (terminationLock) {
+            while (!doTermination) {
+                try {
+                    terminationLock.wait(5000); // check every 5 sec
+
+                    // if no notification after 5 sec then wake thread up
+                    // in case notification missed
+                    if (!doTermination) {
+                        checkTermination();
+                    }
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Determines whether current peer has all pieces (i.e. done downloading)
+     */
+    private boolean hasAllPieces(BitSet bitfield, int numPieces) {
+        return bitfield.cardinality() == numPieces;
     }
 
     /**
@@ -227,28 +275,28 @@ public class Peer {
     /**
      * Returns the available peers in the tracker while also adding the new peer to the tracker
      */
+//    public String connectToTracker() {
+//        printLog(peerID + " is attempting to connect to tracker. . .");
+//        String availablePeers = "";
+//        try {
+//            Socket client = new Socket("localhost", 8080);
+//
+//            BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
+//            PrintWriter out = new PrintWriter(client.getOutputStream());
+//
+//            availablePeers = in.readLine();
+//
+//            out.println("ANNOUNCE " + peerID + " " + hostname + " " + port);
+//            out.flush();
+//
+//            client.close();
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//
+//        return availablePeers;
+//    }
 
-    public String connectToTracker() {
-        printLog(peerID + " is attempting to connect to tracker. . .");
-        String availablePeers = "";
-        try {
-            Socket client = new Socket("localhost", 8080);
-
-            BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
-            PrintWriter out = new PrintWriter(client.getOutputStream());
-
-            availablePeers = in.readLine();
-
-            out.println("ANNOUNCE " + peerID + " " + hostname + " " + port);
-            out.flush();
-
-            client.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return availablePeers;
-    }
     // Each peer must have its own server, so we create a it here and call it when needed
     // Use threads so it doesnt take forever
     public void start() {
@@ -260,23 +308,22 @@ public class Peer {
                 chokingManager.start();
                 startContinuousDownload();
 
-                while (true) {
-                    Socket socket = serverSocket.accept(); // Accept connection if found
-
-                    new Thread(() -> handleIncomingConnection(socket)).start();
+                while (!doTermination) {
+                    try {
+                        serverSocket.setSoTimeout(1000);        // check termination condition every second
+                        Socket socket = serverSocket.accept();  // accept connection if found
+                        new Thread(() -> handleIncomingConnection(socket)).start();
+                    } catch (SocketTimeoutException e) {
+                        // timeout -> (!doTermination) check again
+                    }
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                if (!doTermination) {
+                    e.printStackTrace();
+                }
             }
         }).start();
     }
-
-    /**
-     * NOTE. Only the handshake logic is asymmetric for the methods 'handleIncomingConnection()'
-     * and 'EstablishConnection()'. After the handshake logic, all other logic (BitfieldMessage
-     * passing, listening loops) is symmetric in both methods. In fact, the listening loop
-     * can be abstracted, but I left it here for consistency and clarity.
-     */
 
     // each peer "acting as a server" ( parallel method to 'establishConnection()' )
     public void handleIncomingConnection(Socket socket) {
@@ -303,7 +350,6 @@ public class Peer {
             // Starts the choking manager
             chokingManager.registerNeighbor(remotePeerID);
 
-            // TODO: Log successful handshake temp fix
             logger.logTCPConnection(peerID, remotePeerID);
 
             // exchange bitfields
@@ -317,40 +363,34 @@ public class Peer {
             }
 
             // (6). listen for messages
-            while (!socket.isClosed()) {
-                // Why readInt appeared broken: If the buffer.length (file size) sent is larger than the available
-                // buffer on the receiving TCP stack, or if the receiver logic desynchronizes from the stream (expecting
-                // a 1-byte Type field but getting image data), the readInt on the next loop iteration will try to
-                // interpret image data as an integer length, resulting in garbage values (e.g., negative numbers or
-                // massive integers). --chat
-                int length = in.readInt();
-                if (length > 0) {
-                    byte[] msgData = new byte[length + 4];  // payload ('length' bytes) + length (4 bytes)
+            while (!socket.isClosed() && !doTermination) {
+                try {
+                    int length = in.readInt();  // if connection closes after entering the loop 'readInt()' throws an EOFException
+                    if (length > 0) {
+                        byte[] msgData = new byte[length + 4];  // payload ('length' bytes) + length (4 bytes)
+                        ByteBuffer.wrap(msgData).putInt(length);
+                        in.readFully(msgData, 4, length);
 
-                    ByteBuffer.wrap(msgData).putInt(length);
+                        Message msg = messageHandler.parseMessage(msgData);
+                        printLog("Peer " + peerID + " received " + msg.getClass().getSimpleName() + " from peer " + remotePeerID);
 
-                    in.readFully(msgData, 4, length);   // read (blocking other reads) from offset of 4 bytes
-                    // for offset + 'length' bytes
-
-                    Message msg = messageHandler.parseMessage(msgData);
-
-                    printLog("Peer " + peerID + " received " + msg.getClass().getSimpleName() + " from peer " + remotePeerID);
-
-                    processMessage(remotePeerID, msg);
-
-                    printLog(msg.getClass().getSimpleName() + " processed successfully.");
-
+                        processMessage(remotePeerID, msg);
+                        printLog(msg.getClass().getSimpleName() + " processed successfully.");
+                    }
+                } catch (EOFException e) {
+                    break;
                 }
             }
         } catch (IOException e) {
-            System.err.println("Connection error: " + e.getMessage());
+            if (!doTermination) {
+                System.err.println("Connection error: " + e.getMessage());
+            }
         } catch (IllegalArgumentException e) {
             System.err.println("Invalid handshake message: " + e.getMessage());
         }
     }
 
     //Each peer must also act as a client to connect other peer servers
-    // TODO: consider renaming to handleOutgoingConnection() or connectToPeer()
     public void establishConnection(int peerConnectionId, String serverPeerHost, int serverPeerPort) {
         new Thread(() -> {
             try { // Connects to other Peer's server
@@ -383,7 +423,6 @@ public class Peer {
 
                 chokingManager.registerNeighbor(peerConnectionId);
 
-                // TODO: Log successful handshake temp fix
                 logger.logTCPConnection(peerID, peerConnectionId);
 
                 // exchange bitfields
@@ -399,26 +438,35 @@ public class Peer {
                 }
 
                 // (5). listen for messages
-                while (!socket.isClosed()) {
-                    int length = in.readInt();
+                while (!socket.isClosed() && !doTermination) {
+                    try {
+                        int length = in.readInt();  // if connection closes after entering the loop 'readInt()' throws an EOFException
+                        if (length > 0) {
+                            byte[] msgData = new byte[length + 4];
+                            ByteBuffer.wrap(msgData).putInt(length);
+                            in.readFully(msgData, 4, length);
 
-                    if (length > 0) {
-                        byte[] msgData = new byte[length + 4];
-                        ByteBuffer.wrap(msgData).putInt(length);
-                        in.readFully(msgData, 4, length);
-                        Message msg = messageHandler.parseMessage(msgData);
-                        printLog("Peer " + peerID + " received " + msg.getClass().getSimpleName() + " from peer " + peerConnectionId);
-                        processMessage(peerConnectionId, msg);
-                        printLog(msg.getClass().getSimpleName() + " processed successfully.");
+                            Message msg = messageHandler.parseMessage(msgData);
+                            printLog("Peer " + peerID + " received " + msg.getClass().getSimpleName() + " from peer " + peerConnectionId);
+
+                            processMessage(peerConnectionId, msg);
+                            printLog(msg.getClass().getSimpleName() + " processed successfully.");
+                        }
+                    } catch (EOFException e) {
+                        break;
                     }
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                if (!doTermination) {
+                    e.printStackTrace();
+                }
             }
         }).start();
     }
 
-    // Returns a list of the piece indexes that the inputted peer has that the given peer needs
+    /**
+     * Returns a list of the piece indexes that the inputted peer has that the given peer needs
+     */
     public ArrayList<Integer> checkPieces(Peer peer) {
         ArrayList<Integer> indices = new ArrayList<>();
         for (int i = 0; i < peer.hasChunks.length; i++) {
@@ -494,8 +542,6 @@ public class Peer {
 
     /**
      * Performs the necessary logic upon receipt of each Message type
-     * NEW ADDITIONS: Processing of each message type
-     *
      * @param remotePeerID of peer from which 'msg' originates
      * @param msg          to be processed
      */
@@ -504,6 +550,12 @@ public class Peer {
             BitSet currBitfield = fileManager.getBitfield();
             BitSet remoteBitfield = bitfieldMsg.getBitfield();
             neighborBitfields.put(remotePeerID, remoteBitfield);
+
+            /** NEW (Termination Logic) */
+            // check if remote peer has all pieces ( before we connected to it )
+            if (hasAllPieces(remoteBitfield, fileManager.getNumPieces())) {
+                markPeerAsDone(remotePeerID);
+            }
 
             BitSet interestingPieces = (BitSet) remoteBitfield.clone();
             interestingPieces.andNot(currBitfield);
@@ -545,10 +597,22 @@ public class Peer {
                 printLog("Peer " + peerID + " now has " + fileManager.getNumPiecesOwned() + "/" +
                         fileManager.getNumPieces() + " pieces");
 
+                // Sends HaveMessage to all neighbors
+                HaveMessage haveMsg = new HaveMessage(pieceIndex);
+                for (int neighborID : sockets.keySet()) {
+//                    if (neighborID != remotePeerID) {
+//                        sendMessage(neighborID, haveMsg);
+//                    }
+                    sendMessage(neighborID, haveMsg);
+                }
+
                 // Check if download is complete
                 if (fileManager.hasCompleteFile()) {
                     logger.logCompletionOfDownload(peerID);
                     printLog("Peer " + peerID + " COMPLETED DOWNLOAD!", true);
+
+                    /** NEW (Termination Logic) */
+                    markPeerAsDone(peerID);
 
                     // Update choking manager
                     if (chokingManager != null) {
@@ -562,13 +626,15 @@ public class Peer {
                 } else {
                     // Request new piece immediately
                     requestNextPiece(remotePeerID);
-                    // Sends HaveMessage to all neighbors
-                    HaveMessage haveMsg = new HaveMessage(pieceIndex);
-                    for (int neighborID : sockets.keySet()) {
-                        if (neighborID != remotePeerID) {
-                            sendMessage(neighborID, haveMsg);
-                        }
-                    }
+
+                    // MOVED!
+//                    // Sends HaveMessage to all neighbors
+//                    HaveMessage haveMsg = new HaveMessage(pieceIndex);
+//                    for (int neighborID : sockets.keySet()) {
+//                        if (neighborID != remotePeerID) {
+//                            sendMessage(neighborID, haveMsg);
+//                        }
+//                    }
                 }
             } else {
                 printLog("Peer " + peerID + " failed to save piece " + pieceIndex);
@@ -579,18 +645,29 @@ public class Peer {
             logger.logReceivingHave(peerID, remotePeerID, pieceIndex);
 
             // Update neighbor's bitfield
+            // if peer didn't send a BitfieldMessage then create one
             BitSet neighborBitfield = neighborBitfields.get(remotePeerID);
-            if (neighborBitfield != null) {
-                neighborBitfield.set(pieceIndex);
+            if (neighborBitfield == null) {
+                neighborBitfield = new BitSet(fileManager.getNumPieces());
+                neighborBitfields.put(remotePeerID, neighborBitfield);
+            }
 
-                // Check if piece is needed
-                BitSet currBitfield = fileManager.getBitfield();
-                if (!currBitfield.get(pieceIndex) && !fileManager.hasCompleteFile()) {
-                    // Send interested if we weren't before
-                    sendMessage(remotePeerID, new InterestedMessage());
+            // o.w. peer has already sent BitfieldMessage
+            neighborBitfield.set(pieceIndex);
 
-                    // If already unchoked, piece is requested via. the continuous downloader
-                }
+            /** NEW (Termination Logic) */
+            // check if remote peer has all pieces ( after some recent acquisition  )
+            if (hasAllPieces(neighborBitfield, fileManager.getNumPieces())) {
+                markPeerAsDone(remotePeerID);
+            }
+
+            // Check if piece is needed
+            BitSet currBitfield = fileManager.getBitfield();
+            if (!currBitfield.get(pieceIndex) && !fileManager.hasCompleteFile()) {
+                // Send interested if we weren't before
+                sendMessage(remotePeerID, new InterestedMessage());
+
+                // If already unchoked, piece is requested via. the continuous downloader
             }
 
         } else if (msg instanceof InterestedMessage) {
@@ -621,14 +698,24 @@ public class Peer {
             printLog("Peer " + peerID + " was UNCHOKED by peer " + remotePeerID, true);
             markAsUnchoked(remotePeerID);
 
+            requestNextPiece(remotePeerID); // ADDED
         }
     }
 
     public void shutdown() {
+        /** NEW (Termination Logic) */
+        doTermination = true;
+
+        synchronized (terminationLock) {
+            terminationLock.notifyAll();
+        }
+
         if (chokingManager != null) {
             chokingManager.stop();
         }
+
         stopContinuousDownload();
+
         for (Socket socket : sockets.values()) {
             try {
                 socket.close();
@@ -636,30 +723,9 @@ public class Peer {
                 System.err.println("Error closing socket: " + e.getMessage());
             }
         }
+
         if (logger != null) {
             logger.close();
         }
     }
 }
-
-// Peers have a peerID, hostname, port number and a boolean to check if they have the file
-// Peers store Pieces, each with a unique identifier
-// Peers manage their socket connections up to a given limit
-// Randomly makes connections
-
-// Tracker sends new list of peers
-// Tracker contains unchoking interval, list of peers in torrent
-// Returns to current peer
-
-// Peer is going to request each of the neighboring peers for a list of chunks that they
-// If they have a different chunk, successfully connect
-// Else, looks for new neighbors
-
-// Peer can send chunks, peer can receive chunks
-//
-
-// ORDER OF SUCCESS
-// 1.) Send file to Peer
-// 2.) Send chunks to peer
-// 3.) Send chunks to multiple peers
-
