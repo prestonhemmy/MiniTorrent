@@ -755,15 +755,16 @@ public class Peer {
 
     // 3. When receiving TerminateMessage from remote peer
     public void handleTerminateMessage(int remotePeerID) {
-        markPeerAsDone(remotePeerID);
+        boolean isNewInfo = markPeerAsDone(remotePeerID);
 
-        // Propagate if this is new information (gossip-style)
-        // This ensures all peers eventually learn about all completions
-        broadcastTerminateMessage();
+        // Only propagate if this is NEW information
+        if (isNewInfo) {
+            broadcastTerminateMessage();
+        }
     }
 
-    // 4. Updated markPeerAsDone
-    public void markPeerAsDone(int remotePeerID) {
+    // 4. Updated markPeerAsDone - return whether this was new info
+    public boolean markPeerAsDone(int remotePeerID) {
         boolean isNewInfo = peersWhoAreDone.add(remotePeerID);
 
         if (isNewInfo) {
@@ -771,9 +772,11 @@ public class Peer {
                     + peersWhoAreDone.size() + "/" + totalPeers + ")");
             checkTermination();
         }
+
+        return isNewInfo;  // Return whether this was actually new
     }
 
-    // 5. Updated checkTermination
+    // 5. Updated checkTermination - actually trigger shutdown
     private void checkTermination() {
         if (peersWhoAreDone.size() == totalPeers) {
             printLog("ALL PEERS DONE DOWNLOADING - Terminating...");
@@ -781,9 +784,18 @@ public class Peer {
                 allPeersDone = true;
                 terminationLock.notifyAll();
             }
+
+            // Actually shut down after a brief delay
+            new Thread(() -> {
+                try {
+                    Thread.sleep(2000);  // Give time for final messages
+                    shutdown();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }).start();
         }
     }
-
     // 6. Updated waitForTermination
     public void waitForTermination() {
         synchronized (terminationLock) {
