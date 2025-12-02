@@ -20,6 +20,7 @@ public abstract class Message {
     public static byte BITFIELD = 5;
     public static byte REQUEST = 6;
     public static byte PIECE = 7;
+    public static byte TERMINATE = 8;
 
     public abstract byte getMessageType();
     public abstract int getMessageLength();
@@ -229,6 +230,16 @@ class PieceMessage extends Message {
 
         return new PieceMessage(piece_index, content);
     }
+}
+class TerminateMessage extends Message {
+    @Override
+    public byte getMessageType() { return TERMINATE; }
+
+    @Override
+    public int getMessageLength() { return 1; }
+
+    @Override
+    public byte[] getPayload() { return null; }
 }
 
 // Example usage:

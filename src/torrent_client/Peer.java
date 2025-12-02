@@ -51,11 +51,14 @@ public class Peer {
     private final Set<Integer> unchokedByPeers = Collections.synchronizedSet(new HashSet<>());
 
     /** NEW (Termination Tracking) */
-    int totalPeers = 0;
+    private int totalPeers = 0;
     Map<Integer, Boolean> peerCompletionStatus = new ConcurrentHashMap<>();     // tracking which peers have Complete File -> ( peerID, hasCompleteDownload ) pairs
     Object terminationLock = new Object();                                      // for thread synchronization
     volatile boolean doTermination = false;                                     // flag to kill all peers (all threads) -> 'volatile' guarantees changing
                                                                                 // the value of 'doTermination' is visible to ALL threads immediately
+
+    private volatile boolean allPeersDone = false;
+    private Set<Integer> peersWhoAreDone = Collections.synchronizedSet(new HashSet<>());
 
     public Peer(int peerID, String hostname, int port, boolean hasFile, CommonConfig config) {
         this.peerID = peerID;
@@ -144,17 +147,19 @@ public class Peer {
      * Marks a peer as having a complete file download
      * @param remotePeerID of peer done downloading
      */
+    /*
     public void markPeerAsDone(int remotePeerID) {
         Boolean prevStatus = peerCompletionStatus.put(remotePeerID, true);
         if (prevStatus == null || !prevStatus) {
-            printLog("Peer" + remotePeerID + " marked as DONE DOWNLOADING");
+            printLog("Peer " + remotePeerID + " marked as DONE DOWNLOADING");
             checkTermination();
         }
     }
-
+*/
     /**
      * Check if all peers in the P2P network are done downloading
      */
+    /*
     private void checkTermination() {
         // if not all peers "discovered" then clearly we have not met termination condition
         if (peerCompletionStatus.size() != totalPeers) {
@@ -178,10 +183,11 @@ public class Peer {
             }
         }
     }
-
+*/
     /**
      * Blocks until all peers have completed downloading
      */
+    /*
     public void waitForTermination() {
         synchronized (terminationLock) {
             while (!doTermination) {
@@ -199,7 +205,7 @@ public class Peer {
             }
         }
     }
-
+*/
     /**
      * Determines whether current peer has all pieces (i.e. done downloading)
      */
@@ -395,6 +401,8 @@ public class Peer {
         new Thread(() -> {
             try { // Connects to other Peer's server
                 printLog("Peer " + peerID + " attempting to connect to Peer " + peerConnectionId);
+                System.out.println(serverPeerHost);
+                System.out.println(serverPeerPort);
                 Socket socket = new Socket(serverPeerHost, serverPeerPort); // 3-way handshake
 
                 DataOutputStream out = new DataOutputStream(socket.getOutputStream());
@@ -612,7 +620,7 @@ public class Peer {
                     printLog("Peer " + peerID + " COMPLETED DOWNLOAD!", true);
 
                     /** NEW (Termination Logic) */
-                    markPeerAsDone(peerID);
+                    onDownloadComplete();
 
                     // Update choking manager
                     if (chokingManager != null) {
@@ -700,6 +708,9 @@ public class Peer {
 
             requestNextPiece(remotePeerID); // ADDED
         }
+        else if (msg instanceof TerminateMessage) {
+            handleTerminateMessage(remotePeerID);
+        }
     }
 
     public void shutdown() {
@@ -726,6 +737,64 @@ public class Peer {
 
         if (logger != null) {
             logger.close();
+        }
+    }
+
+    // 2. When a peer finishes downloading
+    public void onDownloadComplete() {
+        printLog("Download complete - notifying all peers");
+        markPeerAsDone(peerID);
+        broadcastTerminateMessage();
+    }
+
+    private void broadcastTerminateMessage() {
+        for (Integer remotePeerID : sockets.keySet()) {
+            sendMessage(remotePeerID, new TerminateMessage());
+        }
+    }
+
+    // 3. When receiving TerminateMessage from remote peer
+    public void handleTerminateMessage(int remotePeerID) {
+        markPeerAsDone(remotePeerID);
+
+        // Propagate if this is new information (gossip-style)
+        // This ensures all peers eventually learn about all completions
+        broadcastTerminateMessage();
+    }
+
+    // 4. Updated markPeerAsDone
+    public void markPeerAsDone(int remotePeerID) {
+        boolean isNewInfo = peersWhoAreDone.add(remotePeerID);
+
+        if (isNewInfo) {
+            printLog("Peer " + remotePeerID + " marked as DONE DOWNLOADING ("
+                    + peersWhoAreDone.size() + "/" + totalPeers + ")");
+            checkTermination();
+        }
+    }
+
+    // 5. Updated checkTermination
+    private void checkTermination() {
+        if (peersWhoAreDone.size() == totalPeers) {
+            printLog("ALL PEERS DONE DOWNLOADING - Terminating...");
+            synchronized (terminationLock) {
+                allPeersDone = true;
+                terminationLock.notifyAll();
+            }
+        }
+    }
+
+    // 6. Updated waitForTermination
+    public void waitForTermination() {
+        synchronized (terminationLock) {
+            while (!allPeersDone) {
+                try {
+                    terminationLock.wait();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
         }
     }
 }

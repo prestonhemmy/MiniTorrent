@@ -35,6 +35,7 @@ public class MessageHandler {
         else if (type == Message.BITFIELD) { return BitfieldMessage.parse(payload, num_pieces); }
         else if (type == Message.REQUEST) { return RequestMessage.parse(payload); }
         else if (type == Message.PIECE) { return PieceMessage.parse(payload); }
+        else if (type == Message.TERMINATE) { return new TerminateMessage(); }
         else {throw new IllegalArgumentException("Error: Unknown message type '" + type + "'");}
     }
 }
