@@ -585,7 +585,7 @@ public class Peer {
                 boolean isUnchoked = chokingManager.isUnchoked(remotePeerID);
 
                 // Ensures that the neighbor has unchoked this peer
-                if (isUnchoked || fileManager.getRequestedPieces().contains(reqMsg.getPieceIndex())) {
+                if (isUnchoked) { // || fileManager.getRequestedPieces().contains(reqMsg.getPieceIndex())
                     sendPiece(remotePeerID, reqMsg.getPieceIndex());
                 } else {
                     printLog("Peer " + peerID + " ignoring request from choked peer " + remotePeerID);
@@ -703,6 +703,7 @@ public class Peer {
         } else if (msg instanceof ChokeMessage) {
             logger.logChoking(peerID, remotePeerID);
             printLog("Peer " + peerID + " was CHOKED by peer " + remotePeerID, true);
+            fileManager.clearRequestedPieces();
             markAsChoked(remotePeerID);
 
         } else if (msg instanceof UnchokeMessage) {

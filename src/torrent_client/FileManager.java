@@ -332,6 +332,10 @@ public class FileManager {
         return requested_pieces;
     }
 
+    public void clearRequestedPieces(){
+        requested_pieces.clear();
+    }
+
 
     /**
      * Logic for ensuring the same piece isn't sent more than once during the repeated sending process
