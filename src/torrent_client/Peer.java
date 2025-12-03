@@ -147,7 +147,7 @@ public class Peer {
      * Marks a peer as having a complete file download
      * @param remotePeerID of peer done downloading
      */
-    /*
+
     public void markPeerAsDone(int remotePeerID) {
         Boolean prevStatus = peerCompletionStatus.put(remotePeerID, true);
         if (prevStatus == null || !prevStatus) {
@@ -155,11 +155,11 @@ public class Peer {
             checkTermination();
         }
     }
-*/
+
     /**
      * Check if all peers in the P2P network are done downloading
      */
-    /*
+
     private void checkTermination() {
         // if not all peers "discovered" then clearly we have not met termination condition
         if (peerCompletionStatus.size() != totalPeers) {
@@ -183,11 +183,11 @@ public class Peer {
             }
         }
     }
-*/
+
     /**
      * Blocks until all peers have completed downloading
      */
-    /*
+
     public void waitForTermination() {
         synchronized (terminationLock) {
             while (!doTermination) {
@@ -205,7 +205,7 @@ public class Peer {
             }
         }
     }
-*/
+
     /**
      * Determines whether current peer has all pieces (i.e. done downloading)
      */
@@ -620,7 +620,7 @@ public class Peer {
                     printLog("Peer " + peerID + " COMPLETED DOWNLOAD!", true);
 
                     /** NEW (Termination Logic) */
-                    onDownloadComplete();
+                    markPeerAsDone(peerID);
 
                     // Update choking manager
                     if (chokingManager != null) {
@@ -709,7 +709,7 @@ public class Peer {
             requestNextPiece(remotePeerID); // ADDED
         }
         else if (msg instanceof TerminateMessage) {
-            handleTerminateMessage(remotePeerID);
+            markPeerAsDone(remotePeerID);
         }
     }
 
@@ -740,6 +740,7 @@ public class Peer {
         }
     }
 
+    /*
     // 2. When a peer finishes downloading
     public void onDownloadComplete() {
         printLog("Download complete - notifying all peers");
@@ -809,4 +810,6 @@ public class Peer {
             }
         }
     }
+    */
+
 }
