@@ -180,6 +180,9 @@ public class Peer {
             synchronized (terminationLock) {        // -> only one thread may execute at a given time
                 doTermination = true;               // notifies all peers in network
                 terminationLock.notifyAll();
+                for(Integer peerID : sockets.keySet()){
+                    sendMessage(peerID, new TerminateMessage());
+                }
             }
         }
     }
@@ -709,7 +712,7 @@ public class Peer {
             requestNextPiece(remotePeerID); // ADDED
         }
         else if (msg instanceof TerminateMessage) {
-            markPeerAsDone(remotePeerID);
+            shutdown();
         }
     }
 
