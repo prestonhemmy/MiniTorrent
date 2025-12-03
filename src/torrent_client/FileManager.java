@@ -328,6 +328,10 @@ public class FileManager {
         return num_pieces;
     }
 
+    public Set<Integer> getRequestedPieces(){
+        return requested_pieces;
+    }
+
 
     /**
      * Logic for ensuring the same piece isn't sent more than once during the repeated sending process

@@ -221,6 +221,7 @@ public class Peer {
      */
     private void requestNextPiece(int remotePeerID) {
         if (fileManager.hasCompleteFile()) {
+            printLog("File " + this.peerID + " has complete file");
             return;
         }
 
@@ -584,7 +585,7 @@ public class Peer {
                 boolean isUnchoked = chokingManager.isUnchoked(remotePeerID);
 
                 // Ensures that the neighbor has unchoked this peer
-                if (isUnchoked) {
+                if (isUnchoked || fileManager.getRequestedPieces().contains(reqMsg.getPieceIndex())) {
                     sendPiece(remotePeerID, reqMsg.getPieceIndex());
                 } else {
                     printLog("Peer " + peerID + " ignoring request from choked peer " + remotePeerID);
