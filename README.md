@@ -71,6 +71,43 @@ The system is driven by two primary configuration files:
 
 
 
+## My Contributions
+
+I was responsible for the core data protocol, file persistence layer, and the system's event-driven logging framework.
+
+### Messaging Protocol & Serialization
+
+* **Handshake Implementation**: Developed the 32-byte handshake protocol, including header validation and Peer ID exchange.
+
+
+* **Message Factory**: Implemented an abstract `Message` class, defining a uniform serialization contact and a Factory pattern in `MessageHandler` to dynamically instantiate specific subclasses based on message type IDs.
+
+
+* **Bitfield Logic**: Built the big-endian bit-level mapping to track piece availability across peers.
+
+
+
+### File Management & Fragmentation
+
+* **FileManager**: Developed the logic for breaking large files into discrete `piece_n.dat` fragments using `RandomAccessFile` for efficient seeking/reading.
+
+
+* **State Recovery**: Implemented directory scanning to allow peers to resume downloads by verifying existing pieces on startup.
+
+
+* **Piece Selection**: Wrote the `randomSelection` algorithm to identify and request missing pieces from unchoked neighbors while avoiding duplicate "in-flight" requests.
+
+
+
+### TCP Networking & Observability
+
+* **Socket Management**: Co-authored `Peer.java` to handle multi-threaded TCP connections and stream synchronization.
+
+
+* **Event Logging**: Built a thread-safe `Logger` that captures protocol transitions (e.g., choking, piece completion) into peer-specific `.log` files to verify system behavior.
+
+
+
 ## Usage
 
 ### Prerequisites
@@ -80,6 +117,8 @@ Compile the source code using the appropriate compiler for your language (Java, 
 ```bash
 # Example using standard javac compiler
 javac -d bin src/torrent_client/*.java
+
+# If recently tested, run ./reset.sh before compilation to clear directory contents
 
 ```
 
