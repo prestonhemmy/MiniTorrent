@@ -4,7 +4,7 @@
 
 rm -f log_peer_*.log
 
-if [-d "config" ]; then
+if [ -d "config" ]; then
   # remove accumulated piece_[pieceID].dat files
   find config/peer_* -name "piece_*.dat" -delete
 
