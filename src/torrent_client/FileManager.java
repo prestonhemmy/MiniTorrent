@@ -7,12 +7,9 @@ import java.nio.file.Files;
 import java.util.*;
 
 /**
- * Handles file fragmentation logic,
- *         piece storage,
- *         bitfield management,
- *         file assembly logic,
- *         piece validation,
- *         directory management
+ * Manages the persistence layer of the P2P client, in particular, handling the fragmentation of local files into
+ * transmittable pieces, tracking piece ownership via bitfields, and reassembling received fragments into the final
+ * output file. This class ensures strict directory isolation for each peer as required by the protocol specification.
  */
 public class FileManager {
     private final int peer_id;
@@ -44,33 +41,15 @@ public class FileManager {
         this.requested_pieces = new HashSet<>();
 
 
-        // create peer directory (ex. 1001/) if it does not already exist
         File dir = new File(base_directory);
         if (!dir.exists()) {
             dir.mkdirs();
         }
 
-        // initialize differently if peer has complete file (i.e. fragment)
         if (has_completed_file) {
-            // ensures file fragmented into "piece_[piece_index].dat" files, written and ready
-            // to be sent to neighbors; 'owned_pieces' BitSet set to all 1s
-
             initializeWithCompleteFile();
 
         } else {
-            // o.w. scan peer's directory for "piece_[piece_index].dat" files (typ. none)
-            // and update 'owned_pieces' accordingly; if a peer leaves the Torrent during the
-            // exchange (i.e. crash or disconnect) after having already downloaded some piece
-            // files, then these piece files would still be stored in the corresponding peer
-            // directory, and thus they would be read and correctly reinitialize the FileManager;
-
-            // Also, per project specs: "The fourth column specifies whether it has the file or
-            // not. We only have two options here. ‘1’ means that the peer has the complete file and ‘0’
-            // means that the peer does not have the file. We do not consider the case where a peer
-            // has only some pieces of the file." -> then we do not have to worry about peers
-            // initialized with some piece files only all or none, this method is primarily for the
-            // case that some peer becomes disconnected during the P2P exchange
-
             checkExistingPieces();
         }
 
@@ -119,10 +98,6 @@ public class FileManager {
             System.err.println("File " + file.getAbsolutePath() + " does not exist");
         }
 
-        // Since we must read 'piece size' bytes (or less for last piece) from the 'file'
-        // we use 'RandomAccessFile' which maintains a kind of cursor (file pointer) allowing
-        // us to iteratively advance the pointer 'piece size' (or less) bytes with 'seek()'
-        // and 'read()' 'piece size' bytes (or less) until EOF reached
         try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
             long file_size = raf.length();
 
@@ -219,9 +194,6 @@ public class FileManager {
 
         File complete_file = new File(base_directory + file_name);
 
-        // This is the parallel method to 'fragment()'. Again we use 'RandomAccessFile' this time with rw privileges
-        // to allow 'raf' to create (read op) the 'complete_file' if not already created and to write each 'piece'
-        // to the 'complete_file'
         try (RandomAccessFile raf = new RandomAccessFile(complete_file, "rw")) {
             raf.setLength(file_size);           // preallocate exactly 'file_size' bytes (write op)
 
@@ -237,7 +209,7 @@ public class FileManager {
                 }
             }
 
-            System.out.println("File " + file_name + " assembled from " + getNumPiecesOwned() + " pieces");
+            System.out.println("\nFile " + file_name + " assembled from " + getNumPiecesOwned() + " pieces");
         } catch (IOException e) {
             System.err.println("Error assembling file: " + e.getMessage());
         }
@@ -273,7 +245,6 @@ public class FileManager {
      * this peer does not already own it and has not yet requested it
      * @param requestable_pieces of some other peer
      * @return 'piece_index' to be requested if interesting piece available, o.w. -1
-     * FIXED ERROR IN LOGIC
      */
     public int randomSelection(BitSet requestable_pieces) {
         List<Integer> candidates = new ArrayList<>(); // List since Random (below) expects an iterable
@@ -349,39 +320,5 @@ public class FileManager {
 
         requested_pieces.add(piece_index);
         return true;
-    }
-
-
-
-
-
-
-
-    // testing (TEMP)
-
-    public static void main(String[] args) throws IOException {
-//        int peer_id = 1001;
-//        System.out.println("src/project_config_file_large/" + peer_id);
-
-//        int peer_id = 777;
-//        String path = "src\\project_config_file_large\\";
-//        File base_directory = new File(path + peer_id);
-//
-//        System.out.println(base_directory.getPath());
-
-//        int file_size = 24301474;
-//        int piece_size = 16384;
-//        int num_pieces = (int)Math.ceil((double) file_size / piece_size);
-//        int last_piece_size = file_size % piece_size;
-//
-//        System.out.println("For a file of size " + file_size + " bytes, we have\n"
-//                + num_pieces + " pieces of size " + piece_size + " bytes and\n" +
-//                "a final piece of size " + last_piece_size + " bytes.");
-
-//        int peer_id = 1001;
-//        CommonConfig config = new CommonConfig();
-//        FileManager fm = new FileManager(peer_id, config, false);
-//        File test_file = new File(fm.base_directory.toString() + "\\tree.jpg");
-//        fm.fragment(test_file);
     }
 }

@@ -29,17 +29,16 @@ public abstract class Message {
      * Store message fields (interpretable) to byte array (transmittable)
      */
     public byte[] serialize() {
-        // ( [length] + [type] + [payload] ) -> byte array
         byte type = getMessageType();
         byte[] payload = getPayload();
         int length = payload == null ? 1 : 1 + payload.length;
 
         ByteBuffer buffer = ByteBuffer.allocate(length + 4);
-        buffer.putInt(length);      // 4-bytes
-        buffer.put(type);           // 1-byte
+        buffer.putInt(length);
+        buffer.put(type);
 
         if (payload != null) {
-            buffer.put(payload);    // n-bytes
+            buffer.put(payload);
         }
 
         return buffer.array();
@@ -105,7 +104,7 @@ class HaveMessage extends Message {
     public byte getMessageType() { return HAVE; }
 
     @Override
-    public int getMessageLength() { return 5; }     // type + piece index (4-bytes)
+    public int getMessageLength() { return 5; }
 
     @Override
     public byte[] getPayload() {
@@ -135,7 +134,7 @@ class BitfieldMessage extends Message {
     public byte getMessageType() { return BITFIELD; }
 
     @Override
-    public int getMessageLength() { return 1 + getPayload().length; }     // type + bitfield
+    public int getMessageLength() { return 1 + getPayload().length; }
 
     @Override
     public byte[] getPayload() {
@@ -182,7 +181,7 @@ class RequestMessage extends Message {
     public byte getMessageType() { return REQUEST; }
 
     @Override
-    public int getMessageLength() { return 5; }     // type + piece index (4-bytes)
+    public int getMessageLength() { return 5; }
 
     @Override
     public byte[] getPayload() {
@@ -211,7 +210,7 @@ class PieceMessage extends Message {
     public byte getMessageType() { return PIECE; }
 
     @Override
-    public int getMessageLength() { return 5 + content.length; }     // type + piece index + content
+    public int getMessageLength() { return 5 + content.length; }
 
     @Override
     public byte[] getPayload() {
@@ -230,16 +229,3 @@ class PieceMessage extends Message {
         return new PieceMessage(piece_index, content);
     }
 }
-
-// Example usage:
-// public synchronized void sendMessage(Message msg, OutputStream out) {
-//     // ^ 'synchronized' keyword to ensures only one message written at a given time
-//     byte[] data = msg.serialize();   // converts Message to byte array
-//     out.write(data);                 // transfer to output stream (socket)
-//     out.flush();                     // send immediately
-// }
-//
-// peer.sendMessage(new ChokeMessage(), outputStream);
-// peer.sendMessage(new HaveMessage(piece_index), outputStream);
-// peer.sendMessage(new PieceMessage(piece_index, content), outputStream);
-

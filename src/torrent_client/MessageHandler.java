@@ -8,7 +8,7 @@ public class MessageHandler {
 
     public MessageHandler(CommonConfig config) {
         num_pieces = (int) Math.ceil((double) config.getFileSize() / config.getPieceSize());
-        piece_size = config.getPieceSize();         // TODO: Need?
+        piece_size = config.getPieceSize();
     }
 
     public Message parseMessage(byte[] bytes) {
@@ -26,7 +26,6 @@ public class MessageHandler {
     }
 
     private Message createMessage(int type, byte[] payload) throws IllegalArgumentException {
-        // TODO: Consider validation checking (ex. null payload) -> Needed?
         if (type == Message.CHOKE) { return new ChokeMessage(); }
         else if (type == Message.UNCHOKE) { return new UnchokeMessage(); }
         else if (type == Message.INTERESTED) { return new InterestedMessage(); }
@@ -38,16 +37,3 @@ public class MessageHandler {
         else {throw new IllegalArgumentException("Error: Unknown message type '" + type + "'");}
     }
 }
-
-// Example usage:
-// public Message receiveMessage(DataInputStream in) throws IOException {
-//     int length = in.readInt();                      // extract length
-//     byte[] data = new byte[4 + length];             // length + (type + payload)
-//
-//     ByteBuffer.wrap(data).putInt(length);           // prepend data with length bytes
-//     in.readFully(data, 4, length);                  // extract (type + payload) into data
-//     // ^ 'readFully()' blocks until all bytes received
-//
-//     return MessageHandler.parseMessage(data);       // converts byte array to Message
-// }
-

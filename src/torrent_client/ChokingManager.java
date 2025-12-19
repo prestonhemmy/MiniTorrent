@@ -5,10 +5,10 @@ import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 /**
- * CHOKING MANAGER
- * Responsible for the choking and unchoking logic
- * Creates optimistically unchoked neighbor
- * Tracks download rated to limit leeching
+ * Orchestrates the peer selection strategy for the P2P network, implementing the "tit-for-tat" mechanism by
+ * calculating download rates to identify preferred neighbors and managing the periodic selection of optimistically
+ * unchoked neighbors. This class ensures fair bandwidth distribution and facilitates the discovery of new,
+ * high-performing network nodes.
  */
 public class ChokingManager {
     private final int localPeerID;
@@ -37,9 +37,9 @@ public class ChokingManager {
      */
     public void start() {
         scheduler = Executors.newScheduledThreadPool(2);
-        // Initializes with immediate call of choke selection
         scheduler.execute(this::selectPreferredNeighbors);
         scheduler.execute(this::selectOptimisticallyUnchokedNeighbor);
+
         // Schedule preferred neighbor selection every p seconds
         scheduler.scheduleAtFixedRate(
                 this::selectPreferredNeighbors,
@@ -128,7 +128,6 @@ public class ChokingManager {
     private synchronized void selectPreferredNeighbors() {
         try {
 
-            // Redoes the download rates list
             updateDownloadRates();
             Set<Integer> previousPreferred = new HashSet<>(preferredNeighbors);
             preferredNeighbors.clear();
@@ -146,15 +145,14 @@ public class ChokingManager {
                         .limit(k)
                         .collect(Collectors.toList());
                 preferredNeighbors.addAll(selected);
-            } else {
 
-                // Select top k by download rate
+            // O.w. select top k peers by download rate
+            } else {
                 List<Integer> topNeighbors = candidates.stream()
                         .sorted((a, b) -> {
                             long rateA = downloadRates.getOrDefault(a, 0L);
                             long rateB = downloadRates.getOrDefault(b, 0L);
                             if (rateA == rateB) {
-                                // If the same, pick randomly
                                 return random.nextBoolean() ? 1 : -1;
                             }
                             return Long.compare(rateB, rateA); // Descending order
@@ -224,6 +222,7 @@ public class ChokingManager {
                     !preferredNeighbors.contains(previousOptUnchokedNeighbor)) {
                 sendChokeMessage(previousOptUnchokedNeighbor);
             }
+
             logger.logChangeOfOptUnchokedNeighbor(localPeerID, optimisticallyUnchokedNeighbor);
 
         } catch (Exception e) {
@@ -239,6 +238,7 @@ public class ChokingManager {
         for (Map.Entry<Integer, Long> entry : bytesDownloadedThisInterval.entrySet()) {
             downloadRates.put(entry.getKey(), entry.getValue());
         }
+
         // Reset for next interval
         bytesDownloadedThisInterval.clear();
     }
@@ -259,19 +259,5 @@ public class ChokingManager {
         } catch (Exception e) {
             System.err.println("Error sending choke message to peer " + neighborPeerID + ": " + e.getMessage());
         }
-    }
-
-    /**
-     * Previously used for testing, may not be needed anymore
-     */
-
-    public synchronized Set<Integer> getPreferredNeighbors() {
-        return new HashSet<>(preferredNeighbors);
-    }
-    public synchronized Integer getOptimisticallyUnchokedNeighbor() {
-        return optimisticallyUnchokedNeighbor;
-    }
-    public synchronized Set<Integer> getInterestedNeighbors() {
-        return new HashSet<>(interestedNeighbors);
     }
 }

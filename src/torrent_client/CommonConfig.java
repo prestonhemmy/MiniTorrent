@@ -12,15 +12,6 @@ public class CommonConfig {
     private final int file_size;
     private final int piece_size;
 
-    CommonConfig() {
-        num_pref_neighbors = 2;
-        unchoking_interval = 5;
-        opt_unchoking_interval = 15;
-        file_name = "tree.jpg";
-        file_size = 10000232;
-        piece_size = 32768;
-    }
-
     CommonConfig(int num_pref_neighbors, int unchoking_interval, int opt_unchoking_interval,
                  String file_name, int file_size, int piece_size) {
         this.num_pref_neighbors = num_pref_neighbors;
@@ -39,8 +30,7 @@ public class CommonConfig {
     int getPieceSize() { return piece_size; }
 }
 
-// TODO: Move to new file 'ConfigParser.java' and make public
-// TODO: Integration?
+
 class ConfigParser {
     CommonConfig parseCommonConfig(String filename) {
         int num_pref_neighbors = 2;
@@ -75,7 +65,4 @@ class ConfigParser {
                 num_pref_neighbors, unchoking_interval, opt_unchoking_interval, file_name, file_size, piece_size
         );
     }
-
-    // TODO: Consider moving 'PeerProcess.java' PeerInfo.cfg parsing here
-    //  for unified config parsing functionality
 }
