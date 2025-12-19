@@ -4,6 +4,7 @@
 
 # Build artifacts
 bin/
+.gradle/
 out/
 
 # Compiled class files
@@ -13,4 +14,5 @@ out/
 *.log
 
 # Ignore files generated during execution
+config/10*/
 *.dat
