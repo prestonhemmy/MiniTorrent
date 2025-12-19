@@ -28,7 +28,7 @@ public class FileManager {
         this.peer_id = peer_id;
         this.config = config;
 
-        String path = "src/project_config_file_large/";
+        String path = "config/";
         this.base_directory = path + peer_id + "/";
         this.file_name = config.getFileName();
 

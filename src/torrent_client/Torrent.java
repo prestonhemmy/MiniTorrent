@@ -5,7 +5,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * TODO: Torrent class comment
+ * Serves as the main entry point for the P2P file-sharing application. This class handles the initial bootstrap
+ * process, including parsing global and peer-specific configuration files, initializing the local Peer instance, and
+ * establishing the initial mesh network connections based on the predefined startup order. It also manages the
+ * lifecycle of the peer process by blocking until the global termination condition is met.
  */
 public class Torrent {
     public static void main(String[] args) throws IOException, InterruptedException {
@@ -16,8 +19,8 @@ public class Torrent {
         int peerID = Integer.parseInt(args[0]); // local peer ID
 
         ConfigParser parser = new ConfigParser();
-        String commonPath = "src/project_config_file_large/Common.cfg";
-        String peerInfoPath = "src/project_config_file_large/PeerInfo.cfg";
+        String commonPath = "config/Common.cfg";
+        String peerInfoPath = "config/PeerInfo.cfg";
 
         CommonConfig config = parser.parseCommonConfig(commonPath);
 
