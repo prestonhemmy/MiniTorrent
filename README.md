@@ -108,3 +108,12 @@ Start each peer process individually by providing its Peer ID as a parameter. Pe
 java -cp bin torrent_client.Torrent 1001
 
 ```
+
+
+## Author
+
+**Preston Hemmy**
+
+GitHub: [@prestonhemmy](https://github.com/prestonhemmy)
+
+LinkedIn: [Preston Hemmy](https://linkedin.com/in/prestonhemmy)
