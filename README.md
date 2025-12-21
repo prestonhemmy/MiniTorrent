@@ -110,7 +110,7 @@ java -cp bin torrent_client.Torrent 1001
 ```
 
 
-## Co-Author
+## Author
 
 **Preston Hemmy**
 
